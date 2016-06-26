@@ -12,7 +12,8 @@ import org.jsoup.select.Elements;
 
 public class WikiPhilosophy {
 	
-	final static WikiFetcher wf = new WikiFetcher();
+    // WikiFetcher singleton
+	final static WikiFetcher fetcher = new WikiFetcher();
 	
 	/**
 	 * Tests a conjecture about Wikipedia and Philosophy.
@@ -29,23 +30,112 @@ public class WikiPhilosophy {
 	 */
 	public static void main(String[] args) throws IOException {
 		
-        // some example code to get you started
+        ArrayList<String> visited = new ArrayList<String>();
 
-		String url = "https://en.wikipedia.org/wiki/Java_(programming_language)";
-		Elements paragraphs = wf.fetchWikipedia(url);
+		String start = "https://en.wikipedia.org/wiki/Java_(programming_language)";
+        String finish = "https://en.wikipedia.org/wiki/Philosophy";
+        String url = start;
 
-		Element firstPara = paragraphs.get(0);
-		
-		Iterable<Node> iter = new WikiNodeIterable(firstPara);
-		for (Node node: iter) {
-			if (node instanceof TextNode) {
-				System.out.print(node);
-			}
+        for (int i = 0; i < 15; i++) {
+
+            if (visited.contains(url)) {
+                return;
+            }
+            else {
+                visited.add(url); 
+            }
+
+            Elements paragraphs = fetcher.fetchWikipedia(url);
+            Element link = searchPage(paragraphs);
+
+            if (link == null) {
+                System.err.println("No links on this page...");
+                return;
+            }
+
+            url = link.attr("abs:href");
+            System.out.println("currently on: " + url);
+            
+            if (url.equals(finish)) {
+                System.out.println("found it!");
+                break;
+            }
+        }
+	}
+
+    public static Element searchPage(Elements paragraphs) {
+
+        for (Element paragraph : paragraphs) {
+
+            Element firstLink = findLinkInParagraph(paragraph);
+
+            if (firstLink != null) {
+                return firstLink;
+            }
         }
 
-        // the following throws an exception so the test fails
-        // until you update the code
-        String msg = "Complete this lab by adding your code and removing this statement.";
-        throw new UnsupportedOperationException(msg);
-	}
+        // No links in the page
+        return null;
+    }
+
+    private static Element findLinkInParagraph(Element paragraph) {
+
+        Iterable<Node> nodes = new WikiNodeIterable((Node) paragraph);
+
+        for (Node node : nodes) {
+
+            if(node instanceof TextNode)
+                continue;
+
+            else {
+
+                Element firstLink = validateLink((Element) node);
+
+                if (firstLink != null) {
+                    return firstLink;
+                }
+            }
+        }
+
+        // No links in the paragraph
+        return null;
+    }
+
+    private static Element validateLink(Element elt) {
+
+        boolean isValid = true;
+
+        //******************************
+        if (!elt.tagName().equals("a")) 
+            isValid = false;
+        
+        if (isItalic(elt)) 
+            isValid = false;
+        
+        if (elt.attr("href").startsWith("#")) 
+            isValid = false;
+        
+        if (elt.attr("href").startsWith("/wiki/Help:")) 
+            isValid = false;
+        //*********************************
+
+        if (isValid) 
+            return elt;
+
+        else 
+            return null;     
+    }
+
+    // Couldn't figure this one out, so I used the solution as a reference
+    private static boolean isItalic(Element elt) {
+
+        while (elt != null) {
+
+            if (elt.tagName().equals("i") || elt.tagName().equals("em"))
+                return true;
+
+            elt = elt.parent();
+        }
+        return false;
+    }
 }
